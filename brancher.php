@@ -4,7 +4,7 @@
  *  by boyernotseaboyer
  *  v 0.1 - 21 Aug 2015
  *  Use this script to quickly switch branches (or create a new one) and renenerate your environment
- *  I recommend creating a script called "swb", give it exec prems, move it to /usr/bin:
+ *  I recommend creating a script called "swb" (for SWitch Branch), give it exec prems, move it to /usr/bin:
  * 
  *      #!/bin/sh
  *      php /path/to/brancher.php "$@"
@@ -17,105 +17,201 @@
  * */
 error_reporting(E_ERROR);
 
-## Setup Crap
-#############
-
-// Path to your regenerate directory
-$regenPath = "/Users/seanboyer/Dev/regenerate/"; // add trailing slash
+class brancher {	
+	// Path to your regenerate directory
+	private static $regenPath = ""; // add trailing slash
 
 
-## Don't alter below this, unless, ya know.... ya wanna...
-##########################################################
+	## Don't alter below this, unless, ya know.... ya wanna...
+	##########################################################
 
-$configPath = $regenPath . "configuration.json";
-$gitNoBranchMsg = "/error: pathspec '(\w*)' did not match/";
+	private static $gitPath;
+	private $configPath;
+	private static $gitNoBranchMsg = "/error: pathspec '(\w*)' did not match/";
+	private static $pipeSettings = array(
+	   0 => array("pipe", "r"), //stdin
+	   1 => array("pipe", "w"), //stout
+	   2 => array("pipe", "w")  //sterr - where the git commands write to
+	);
 
-if (empty($regenPath)) {
-	wl ("Dude! You need to set the \$regenPath in this script! Do that first, homie!");
-	die;
-}
+	private $branch;
 
-// No args gives you a usage message
-if (empty($argv[1])) {
-	wl ("Usage: brancher.php branch_name [origin_name=\"master\"] [new]");
-	exit;
-}
+	public function brancher() {
+		$this->test();
+		$this->init();
 
-$descriptorspec = array(
-   0 => array("pipe", "r"), //stdin
-   1 => array("pipe", "w"), //stout
-   2 => array("pipe", "w")  //sterr - where the git commands write to
-);
+		$this->doCheckout();
+		$this->doPull();
+		$this->doModifyConfig();
+		$this->doRegenerate();
 
-// figure out the argument(s)
-$branch = $argv[1];
-$create = (isset($argv[3]) && ($argv[3] == "new")) || $argv[2] == "new";
-$upstream = !empty($argv[2]) ? $argv[2] : "master";
-
-##  Doing Stuff...
-##################
-
-wl ("Gonna try to check out the branch. If you wanted, I'll create it if it doesn't exist.");
-
-// try to checkout branch
-$process = proc_open("git checkout " . $branch, $descriptorspec, $pipes, getcwd(), null);
-$retVal = stream_get_contents($pipes[2]);
-$gitRet = proc_close($process);
-
-// check the output from the checkout
-if (preg_match($gitNoBranchMsg, $retVal) === 1) {
-	// branch doesn't exist, so let's create it if we're supposed to
-	if ($create) {
-		wl ("T'ain't no branch existing, so we makin' it, baby!");
-		$process = proc_open("git checkout -b " . $branch, $descriptorspec, $pipes, getcwd(), null);
-		$retVal = stream_get_contents($pipes[2]);
-		$gitRet = proc_close($process);
-		wl ("Done creating branch \"" . $branch . "\"!!!");
-	} else {
-		wl ("The branch \"" . $branch . "\" doesn't exist, and you didn't want it created, so we audi 5000! Please out!");
-		exit;
+		self::wl("A'ight, we done, we audi 5000! Please out!");
 	}
 
-	// set upstream
-	wl ("Setting the upstream branch.");
+	/**
+	 * Do the various initialization stuffs
+	 * @return type
+	 */
+	private function init() {
+		global $argv;
 
-	$process = proc_open("git branch -u origin/" . $upstream, $descriptorspec, $pipes, getcwd(), null);
-	$retVal = stream_get_contents($pipes[2]);
-	$gitRet = proc_close($process);
-} 
+		$this->configurePaths();
 
-// pull
-wl ("Pulling...");
-$process = proc_open("git pull" . $upstream, $descriptorspec, $pipes, getcwd(), null);
-$retVal = stream_get_contents($pipes[2]);
-$gitRet = proc_close($process);
+		// No args gives you a usage message
+		if (empty($argv[1])) {
+			self::wl("Usage: brancher.php branch_name [origin_name=\"master\"]");
+			exit;
+		}
 
-// open & modify the configuration.json
-wl ("Now we'll set the branch on the regen config.");
+		// figure out the argument(s)
+		$this->branch = $argv[1];
+		$this->upstream = @$argv[2];
+		
+	}
 
-$str = file_get_contents($configPath);
-$config = json_decode($str);
-$config->{"branch"} = $branch;
-file_put_contents($configPath, json_encode($config, JSON_PRETTY_PRINT));
-wl ("Holy crap, that was easy!");
+	private function doCheckout() {
+		self::wl("Gonna try to check out the branch. If you wanted, I'll create it if it doesn't exist.");
 
-// run regenerate
-wl ("Going to Run regenerate now... Hold on, it takes awhile (1-3 minutes).");
-$process = proc_open($regenPath . "regenerate", $descriptorspec, $pipes, $regenPath, null);
-$retVal = stream_get_contents($pipes[2]);
-$gitRet = proc_close($process);
-wl ("A'ight, we done, we audi 5000! Please out!");
+		// try to checkout branch
+		$process = proc_open("git checkout " . $this->branch, self::$pipeSettings, $pipes, self::$gitPath, null);
+		$retVal  = stream_get_contents($pipes[2]);
+		$gitRet  = proc_close($process);
 
+		// check the output from the checkout
+		if (preg_match(self::$gitNoBranchMsg, $retVal) === 1) {
+			// branch doesn't exist, so let's create it if we're supposed to
+			self::wl("T'ain't no branch by that name. Wanna make one? (y/n): [y]  ");
+			$anser = self::readKeyboard();
 
-/**
- * Write a line with a bunch of linebreaks
- * @param type $str 
- * @return type
- */
-function wl($str) {
-	echo ($str . PHP_EOL . PHP_EOL);
+			if ($answer == "y" || $answer == "") {
+				$process = proc_open("git checkout -b " . $this->branch, self::$pipeSettings, $pipes, getcwd(), null);
+				$retVal = stream_get_contents($pipes[2]);
+				$gitRet = proc_close($process);
+				self::wl("Done creating branch \"" . $this->branch . "\"!!!");
+			} else if ($answer == "n") {
+				self::wl("The branch \"" . $this->branch . "\" doesn't exist, and you didn't want it created, so we audi 5000! Please out!");
+				exit;
+			} else {
+				self::wl("I said type 'y' or 'n'... Sheesh, that too much for ya???");
+				die;
+			}
+			
+			$this->setUpstreamBranch();
+		}
+	}
+
+	private function setUpstreamBranch() {
+		// set upstream
+		if (isset($this->upstream)) {
+			self::wl("Setting the upstream branch.");
+		} else {
+			self::wl("Enter your upstream branch name: [master] ");
+			$answer = self::readKeyboard();
+			if (!empty($answer)) {
+				$this->upstream = $answer;
+			} else {
+				$this->upstream = "master";
+			}
+		}
+
+		$process = proc_open("git branch -u origin/" . $this->upstream, self::pipeSettings, $pipes, getcwd(), null);
+		$retVal = stream_get_contents($pipes[2]);
+		
+		$gitRet = proc_close($process);
+	}
+
+	private function doPull() {
+		// pull
+		self::wl("Pulling...");
+		$process = proc_open("git pull" . $this->upstream, self::pipeSettings, $pipes, getcwd(), null);
+		$retVal = stream_get_contents($pipes[2]);
+		
+		$gitRet = proc_close($process);
+	}
+
+	private function doModifyConfig() {
+		// open & modify the configuration.json
+		self::wl("Now we'll set the branch on the regen config.");
+
+		$config = json_decode(file_get_contents($this->configPath));
+		$config->{"branch"} = $this->branch;
+		file_put_contents($this->configPath, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+	}
+
+	private function doRegenerate() {
+		// run regenerate
+		self::wl("Going to Run regenerate now... Hold on, it takes awhile (1-3 minutes).");
+		$process = proc_open(self::$regenPath . "regenerate", self::pipeSettings, $pipes, self::$regenPath, null);
+		$retVal = stream_get_contents($pipes[2]);
+		
+		$gitRet = proc_close($process);
+	}
+
+	private function configurePaths() {
+		// Get the current user
+		$me = self::exec("whoami");
+
+		if ($me == "root") {
+			self::wl("You're running as root for some reason. Please su to your normal user.");
+			die;
+		}
+
+		// Try to guess the path
+		if (is_dir(self::$regenPath)) {
+			// Do nothing, we're golden
+		} else if (is_dir("/Users/" . $me . "/Development/regenerate")) {
+			self::$regenPath = "/Users/" . $me . "/Development/regenerate";
+		} else if (is_dir("/Users/" . $me . "/Dev/regenerate")) {
+			self::$regenPath = "/Users/" . $me . "/Dev/regenerate";
+		} else {
+			self::wl("Dude! You need to set the self::\$regenPath in this script! Do that first, homie!");
+			die;
+		}
+
+		$this->gitPath = self::$regenPath . "../";
+		$this->configPath = self::$regenPath . "configuration.json";
+	}
+
+	/**
+	 * Read input off the keyboard, single line only.
+	 * @return type
+	 */
+	private static function readKeyboard() {
+		$fp = fopen('php://stdin', 'r');
+		while (true) {
+		    $line = fgets($fp, 1024);
+		    if (stripos($line, PHP_EOL)) {
+		    	fclose($fp);
+		    	return trim($line);
+		    }
+		    usleep(20000);
+		}
+	}
+
+	/**
+	 * Write a line with a bunch of linebreaks
+	 * @param type $str 
+	 * @return type
+	 */
+	private static function wl($str) {
+		echo ($str . PHP_EOL . PHP_EOL);
+	}
+
+	/**
+	 * Write an object to the error log, optionally
+	 * prefixing with a string
+	 * @param type $obj 
+	 * @param type $prefixStr 
+	 * @return type
+	 */
+	private static function l($obj, $prefixStr = "") {
+		error_log($previxStr . print_r($obj, true));
+	}
+
+	private function test() {
+		self::l(exec("whoami"));
+		die;
+	}
 }
 
-function l($obj, $prefixStr = "") {
-	error_log($previxStr . print_r($obj, true));
-}
+$brancher = new brancher();
