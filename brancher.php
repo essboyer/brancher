@@ -18,7 +18,8 @@
 error_reporting(E_ERROR);
 
 class brancher {	
-	// Path to your regenerate directory
+	// Path to your regenerate directory if different than /Users/[username]/Development/
+	// or /Users/[username]/Dev/
 	private static $regenPath = ""; // add trailing slash
 
 

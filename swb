@@ -1,3 +1,5 @@
 #!/bin/sh
 
+# Look for the path to brancher in the env vars
+
 php /Users/seanboyer/Dev/brancher.php "$@"
