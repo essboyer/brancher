@@ -39,11 +39,11 @@ class brancher {
 	private $branch;
 
 	public function brancher() {
-		$this->test();
+		// $this->test();
 		$this->init();
 
-		$this->doPull();
 		$this->doCheckout();
+		$this->doPull();
 		$this->doModifyConfig();
 		$this->doRegenerate();
 
@@ -61,18 +61,20 @@ class brancher {
 
 		// No args gives you a usage message
 		if (empty($argv[1])) {
-			self::wl("Usage: brancher.php branch_name [origin_name=\"master\"]");
+			self::wl("Usage: swb branch_name [origin_name=\"master\"]");
 			exit;
 		}
 
 		// figure out the argument(s)
 		$this->branch = $argv[1];
 		$this->upstream = @$argv[2];
+
+		self::wl($this->ascii);
 		
 	}
 
 	private function doCheckout() {
-		self::wl("Gonna try to check out the branch. If you wanted, I'll create it if it doesn't exist.");
+		self::wl("Gonna try to check out the branch.");
 
 		// try to checkout branch
 		$process = proc_open("git checkout " . $this->branch, self::$pipeSettings, $pipes, self::$gitPath, null);
@@ -82,10 +84,10 @@ class brancher {
 		// check the output from the checkout
 		if (preg_match(self::$gitNoBranchMsg, $retVal) === 1) {
 			// branch doesn't exist, so let's create it if we're supposed to
-			self::wl("T'ain't no branch by that name. Wanna make one? (y/n): [y]  ");
-			$anser = self::readKeyboard();
+			echo("T'ain't no branch by that name. Wanna make one? (y/n): [y] ");
+			$answer = self::readKeyboard();
 
-			if ($answer == "y" || $answer == "") {
+			if ($answer == "y" || empty($answer)) {
 				$process = proc_open("git checkout -b " . $this->branch, self::$pipeSettings, $pipes, self::$gitPath, null);
 				$retVal = stream_get_contents($pipes[2]);
 				$gitRet = proc_close($process);
@@ -107,18 +109,20 @@ class brancher {
 		if (isset($this->upstream)) {
 			self::wl("Setting the upstream branch.");
 		} else {
-			self::wl("Enter your upstream branch name: [master] ");
+			echo("Enter your upstream branch name, or 'skip' to skip this step: [master] ");
 			$answer = self::readKeyboard();
 			if (!empty($answer)) {
 				$this->upstream = $answer;
+			} else if ($answer == "skip") {
+				self::wl("Not setting an upstream.");
+				return;
 			} else {
 				$this->upstream = "master";
 			}
 		}
 
-		$process = proc_open("git branch -u origin/" . $this->upstream, self::$pipeSettings, $pipes, self::$gitPath, null);
+		$process = proc_open("git push --set-upstream origin " . $this->upstream, self::$pipeSettings, $pipes, self::$gitPath, null);
 		$retVal = stream_get_contents($pipes[2]);
-		
 		$gitRet = proc_close($process);
 	}
 
@@ -127,22 +131,22 @@ class brancher {
 		self::wl("Pulling...");
 		$process = proc_open("git pull", self::$pipeSettings, $pipes, self::$gitPath, null);
 		$retVal = stream_get_contents($pipes[2]);
-
-		// check to see if we already have a remote association
-		if (stripos($retVal, self::$gitNoRemoteMsg) === false) {
-			// looks like we've already set the remote.
-			$this->setUpstreamBranch();
-
-			// now pull again...
-			$this->doPull();
-		} 
-		
 		$gitRet = proc_close($process);
+
+		// // check to see if we already have a remote association
+		// if (stripos($retVal, self::$gitNoRemoteMsg) === false) {
+		// 	// looks like we've already set the remote.
+		// 	$this->setUpstreamBranch();
+
+		// 	// now pull again...
+		// 	$this->doPull();
+		// } 
+		
 	}
 
 	private function doModifyConfig() {
 		// open & modify the configuration.json
-		self::wl("Now we'll set the branch on the regen config.");
+		self::wl("Now we'll set the branch on the regenerate config.");
 
 		$config = json_decode(file_get_contents($this->configPath));
 		$config->{"branch"} = $this->branch;
@@ -154,13 +158,12 @@ class brancher {
 		self::wl("Going to Run regenerate now... Hold on, it takes awhile (1-3 minutes).");
 		$process = proc_open(self::$regenPath . "regenerate", self::$pipeSettings, $pipes, self::$regenPath, null);
 		$retVal = stream_get_contents($pipes[2]);
-		
-		$gitRet = proc_close($process);
+		$ret = proc_close($process);
 	}
 
 	private function configurePaths() {
 		// Get the current user
-		$me = self::exec("whoami");
+		$me = exec("whoami");
 
 		if ($me == "root") {
 			self::wl("You're running as root for some reason. Please su to your normal user.");
@@ -170,10 +173,10 @@ class brancher {
 		// Try to guess the path
 		if (is_dir(self::$regenPath)) {
 			// Do nothing, we're golden
-		} else if (is_dir("/Users/" . $me . "/Development/regenerate")) {
-			self::$regenPath = "/Users/" . $me . "/Development/regenerate";
-		} else if (is_dir("/Users/" . $me . "/Dev/regenerate")) {
-			self::$regenPath = "/Users/" . $me . "/Dev/regenerate";
+		} else if (is_dir("/Users/" . $me . "/Development/regenerate/")) {
+			self::$regenPath = "/Users/" . $me . "/Development/regenerate/";
+		} else if (is_dir("/Users/" . $me . "/Dev/regenerate/")) {
+			self::$regenPath = "/Users/" . $me . "/Dev/regenerate/";
 		} else {
 			self::wl("Dude! You need to set the self::\$regenPath in this script! Do that first, homie!");
 			die;
@@ -181,6 +184,9 @@ class brancher {
 
 		$this->gitPath = self::$regenPath . "../";
 		$this->configPath = self::$regenPath . "configuration.json";
+
+		// CD to the user's Dev directory
+		chdir($this->gitPath);
 	}
 
 	/**
@@ -191,7 +197,7 @@ class brancher {
 		$fp = fopen('php://stdin', 'r');
 		while (true) {
 		    $line = fgets($fp, 1024);
-		    if (stripos($line, PHP_EOL)) {
+		    if (stripos($line, PHP_EOL) !== false) {
 		    	fclose($fp);
 		    	return trim($line);
 		    }
@@ -223,6 +229,30 @@ class brancher {
 		self::l(exec("whoami"));
 		die;
 	}
+	private $ascii = <<<EOV
+     ''  '''''''     ''  '''    ''' '''''''' '''    :::.              ::::   ,::::::::::::::::::::         
+     ''  '''''''     ''  '''    ''' '''''''' '''    :::.              ::::   ::::::::::::::::::::::        
+     ''  '''''''     ''  '''    ''' '''''''' '''    :::.              ::::   :::::::::::::::::::::::       
+                                                    :::.              ::::   ::::::::::::::::::::::::      
+                                                    :::.              ::::   ::::       ,:::    `:::::     
+                                                    :::.              ::::   ::::       ,:::     `:::::    
+                                                    ::::              ::::   ::::       ,:::      `:::::   
+      :'''''''''''''      ::    '   ''''''''''`     :::::             ::::   ::::       ,:::       `:::::  
+     ''''''''''''''''     ''    '. ''''''''''''.     :::::            ::::   ::::       ,:::        `::::  
+     ';             ''    ''    '.''`         ''      :::::           ::::   ::::       ,:::         ::::  
+                    `'`   ''    '''`                   :::::          ::::   ::::       ,:::         ::::  
+                     '`   ''    ''`                     :::::         ::::   ::::       ,:::         ::::  
+                    `'`   ''    '.                       :::::        ::::   ::::       ,:::         ::::  
+    ''''''''''''''''''`   ''    '.                        :::::       ::::   ::::       ,:::         ::::  
+   '':,,,,,,,,,,,,,,;'`   ''    '.                         :::::      ::::   ::::       ,:::         ::::  
+  ''`                '`   ''    '.                          :::::     ::::   ::::       ,:::         ::::  
+  ''                 '`   ''    '.                           :::::    ::::   ::::       ,:::         ::::  
+  ''                 '`   ''    '.                            :::::   ::::   ::::       ,:::         ::::  
+  ''                 '`   ''    '.                             :::::::::::   ::::       ,:::         ::::  
+  ;',                '`   ''    '.                              ::::::::::   ::::       ,:::         ::::  
+   '''''''''''''''''''`   ''    '.                               :::::::::   ::::       ,:::         ::::  
+    ''''''''''''''''''    ''    '`                                ::::::::   ::::       ,:::         ::::  
+EOV;
 }
 
 $brancher = new brancher();
