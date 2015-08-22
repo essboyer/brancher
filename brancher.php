@@ -85,7 +85,7 @@ class brancher {
 			$anser = self::readKeyboard();
 
 			if ($answer == "y" || $answer == "") {
-				$process = proc_open("git checkout -b " . $this->branch, self::$pipeSettings, $pipes, getcwd(), null);
+				$process = proc_open("git checkout -b " . $this->branch, self::$pipeSettings, $pipes, self::$gitPath, null);
 				$retVal = stream_get_contents($pipes[2]);
 				$gitRet = proc_close($process);
 				self::wl("Done creating branch \"" . $this->branch . "\"!!!");
@@ -115,7 +115,7 @@ class brancher {
 			}
 		}
 
-		$process = proc_open("git branch -u origin/" . $this->upstream, self::$pipeSettings, $pipes, getcwd(), null);
+		$process = proc_open("git branch -u origin/" . $this->upstream, self::$pipeSettings, $pipes, self::$gitPath, null);
 		$retVal = stream_get_contents($pipes[2]);
 		
 		$gitRet = proc_close($process);
@@ -124,7 +124,7 @@ class brancher {
 	private function doPull() {
 		// pull
 		self::wl("Pulling...");
-		$process = proc_open("git pull", self::$pipeSettings, $pipes, getcwd(), null);
+		$process = proc_open("git pull", self::$pipeSettings, $pipes, self::$gitPath, null);
 		$retVal = stream_get_contents($pipes[2]);
 
 		// check to see if we already have a remote association
