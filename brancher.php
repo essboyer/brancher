@@ -28,6 +28,7 @@ class brancher {
 	private static $gitPath;
 	private $configPath;
 	private static $gitNoBranchMsg = "/error: pathspec '(\w*)' did not match/";
+	private static $gitNoRemoteMsg = "There is no tracking information for the current branch.";
 	private static $pipeSettings = array(
 	   0 => array("pipe", "r"), //stdin
 	   1 => array("pipe", "w"), //stout
@@ -40,8 +41,8 @@ class brancher {
 		$this->test();
 		$this->init();
 
-		$this->doCheckout();
 		$this->doPull();
+		$this->doCheckout();
 		$this->doModifyConfig();
 		$this->doRegenerate();
 
@@ -114,7 +115,7 @@ class brancher {
 			}
 		}
 
-		$process = proc_open("git branch -u origin/" . $this->upstream, self::pipeSettings, $pipes, getcwd(), null);
+		$process = proc_open("git branch -u origin/" . $this->upstream, self::$pipeSettings, $pipes, getcwd(), null);
 		$retVal = stream_get_contents($pipes[2]);
 		
 		$gitRet = proc_close($process);
@@ -123,8 +124,17 @@ class brancher {
 	private function doPull() {
 		// pull
 		self::wl("Pulling...");
-		$process = proc_open("git pull" . $this->upstream, self::pipeSettings, $pipes, getcwd(), null);
+		$process = proc_open("git pull", self::$pipeSettings, $pipes, getcwd(), null);
 		$retVal = stream_get_contents($pipes[2]);
+
+		// check to see if we already have a remote association
+		if (stripos($retVal, self::$gitNoRemoteMsg) === false) {
+			// looks like we've already set the remote.
+			$this->setUpstreamBranch();
+
+			// now pull again...
+			$this->doPull();
+		} 
 		
 		$gitRet = proc_close($process);
 	}
@@ -141,7 +151,7 @@ class brancher {
 	private function doRegenerate() {
 		// run regenerate
 		self::wl("Going to Run regenerate now... Hold on, it takes awhile (1-3 minutes).");
-		$process = proc_open(self::$regenPath . "regenerate", self::pipeSettings, $pipes, self::$regenPath, null);
+		$process = proc_open(self::$regenPath . "regenerate", self::$pipeSettings, $pipes, self::$regenPath, null);
 		$retVal = stream_get_contents($pipes[2]);
 		
 		$gitRet = proc_close($process);
