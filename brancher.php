@@ -4,15 +4,10 @@
  *  by boyernotseaboyer
  *  v 0.1 - 21 Aug 2015
  *  Use this script to quickly switch branches (or create a new one) and renenerate your environment
- *  I recommend creating a script called "swb" (for SWitch Branch), give it exec prems, move it to /usr/bin:
- * 
- *      #!/bin/sh
- *      php /path/to/brancher.php "$@"
  *  
- *  Script Usage: > swb new_branch_name [upstream_branch_name] [new]
+ *  Script Usage: > swb branch_name [upstream_branch_name]
  * 
  *  Note: Needs at least PHP 5.4 (because of JSON pretty print option, of all things...)
- *  Note: Put this file in your Development dir; the same one that contains your AirSemblyV2 and regenerate directories
  *
  * */
 error_reporting(E_ERROR);
@@ -28,8 +23,8 @@ class brancher {
 
 	private static $gitPath;
 	private $configPath;
-	private static $gitNoBranchMsg = "/error: pathspec '(\w*)' did not match/";
-	private static $gitNoRemoteMsg = "There is no tracking information for the current branch.";
+	const gitNoBranchMsg = "/error: pathspec '(\w*)' did not match/";
+	const gitNoRemoteMsg = "There is no tracking information for the current branch.";
 	private static $pipeSettings = array(
 	   0 => array("pipe", "r"), //stdin
 	   1 => array("pipe", "w"), //stout
@@ -57,20 +52,22 @@ class brancher {
 	private function init() {
 		global $argv;
 
+		self::wl(self::$ascii);
+
 		$this->configurePaths();
 
 		// No args gives you a usage message
 		if (empty($argv[1])) {
 			self::wl("Usage: swb branch_name [origin_name=\"master\"]");
 			exit;
+		} else if ($argv[1] == "help" || $argv[1] == "--help" || $argv[1] == "-help" || $argv[1] == "-h") {
+			self::wl("Help: You're on your own. Read the src, toughguy! ;)");
+			die;
 		}
 
 		// figure out the argument(s)
 		$this->branch = $argv[1];
 		$this->upstream = @$argv[2];
-
-		self::wl($this->ascii);
-		
 	}
 
 	private function doCheckout() {
@@ -79,10 +76,10 @@ class brancher {
 		// try to checkout branch
 		$process = proc_open("git checkout " . $this->branch, self::$pipeSettings, $pipes, self::$gitPath, null);
 		$retVal  = stream_get_contents($pipes[2]);
-		$gitRet  = proc_close($process);
+		$exitCode  = proc_close($process);
 
 		// check the output from the checkout
-		if (preg_match(self::$gitNoBranchMsg, $retVal) === 1) {
+		if (preg_match(gitNoBranchMsg, $retVal) === 1) {
 			// branch doesn't exist, so let's create it if we're supposed to
 			echo("T'ain't no branch by that name. Wanna make one? (y/n): [y] ");
 			$answer = self::readKeyboard();
@@ -90,7 +87,7 @@ class brancher {
 			if ($answer == "y" || empty($answer)) {
 				$process = proc_open("git checkout -b " . $this->branch, self::$pipeSettings, $pipes, self::$gitPath, null);
 				$retVal = stream_get_contents($pipes[2]);
-				$gitRet = proc_close($process);
+				$exitCode = proc_close($process);
 				self::wl("Done creating branch \"" . $this->branch . "\"!!!");
 			} else if ($answer == "n") {
 				self::wl("The branch \"" . $this->branch . "\" doesn't exist, and you didn't want it created, so we audi 5000! Please out!");
@@ -101,6 +98,8 @@ class brancher {
 			}
 			
 			$this->setUpstreamBranch();
+		} else {
+			self::wl("Switched branch to " . $this->branch);
 		}
 	}
 
@@ -111,19 +110,19 @@ class brancher {
 		} else {
 			echo("Enter your upstream branch name, or 'skip' to skip this step: [master] ");
 			$answer = self::readKeyboard();
-			if (!empty($answer)) {
-				$this->upstream = $answer;
+			if (empty($answer)) {
+				$this->upstream = "master";
 			} else if ($answer == "skip") {
 				self::wl("Not setting an upstream.");
 				return;
 			} else {
-				$this->upstream = "master";
+				$this->upstream = $answer;
 			}
 		}
 
 		$process = proc_open("git push --set-upstream origin " . $this->upstream, self::$pipeSettings, $pipes, self::$gitPath, null);
 		$retVal = stream_get_contents($pipes[2]);
-		$gitRet = proc_close($process);
+		$exitCode = proc_close($process);
 	}
 
 	private function doPull() {
@@ -131,17 +130,7 @@ class brancher {
 		self::wl("Pulling...");
 		$process = proc_open("git pull", self::$pipeSettings, $pipes, self::$gitPath, null);
 		$retVal = stream_get_contents($pipes[2]);
-		$gitRet = proc_close($process);
-
-		// // check to see if we already have a remote association
-		// if (stripos($retVal, self::$gitNoRemoteMsg) === false) {
-		// 	// looks like we've already set the remote.
-		// 	$this->setUpstreamBranch();
-
-		// 	// now pull again...
-		// 	$this->doPull();
-		// } 
-		
+		$exitCode = proc_close($process);
 	}
 
 	private function doModifyConfig() {
@@ -156,18 +145,34 @@ class brancher {
 	private function doRegenerate() {
 		// run regenerate
 		self::wl("Going to Run regenerate now... Hold on, it takes awhile (1-3 minutes).");
-		$process = proc_open(self::$regenPath . "regenerate", self::$pipeSettings, $pipes, self::$regenPath, null);
+		$streams = array (2 => array("pipe", "w")); // only capture STDERR, allowing STDOUT to pass thru
+		$process = proc_open(self::$regenPath . "regenerate", $streams, $pipes, self::$regenPath, null);
 		$retVal = stream_get_contents($pipes[2]);
-		$ret = proc_close($process);
+		$exitCode = proc_close($process);
 	}
 
+	/**
+	 * Configure paths
+	 * Attempt to guess the user's development path.
+	 * If we can't guess it here, the user will have to manually
+	 * mod the script to include their path.
+	 * @return void
+	 */
 	private function configurePaths() {
+		global $argv;
+
 		// Get the current user
 		$me = exec("whoami");
 
+		// don't worry, I forget to not hangout as root sometimes, too.
 		if ($me == "root") {
 			self::wl("You're running as root for some reason. Please su to your normal user.");
 			die;
+		}
+
+		// gag greeting
+		if (isset($argv[1])) {
+			self::wl("Hello " . $me . ". Would you like to play a game of chess?");
 		}
 
 		// Try to guess the path
@@ -195,7 +200,7 @@ class brancher {
 	 */
 	private static function readKeyboard() {
 		$fp = fopen('php://stdin', 'r');
-		while (true) {
+		while (true) { // Don't you LOVE seeing this line?
 		    $line = fgets($fp, 1024);
 		    if (stripos($line, PHP_EOL) !== false) {
 		    	fclose($fp);
@@ -226,10 +231,10 @@ class brancher {
 	}
 
 	private function test() {
-		self::l(exec("whoami"));
-		die;
+		// put test crap here
 	}
-	private $ascii = <<<EOV
+
+	private static $ascii = <<<EOV
      ''  '''''''     ''  '''    ''' '''''''' '''    :::.              ::::   ,::::::::::::::::::::         
      ''  '''''''     ''  '''    ''' '''''''' '''    :::.              ::::   ::::::::::::::::::::::        
      ''  '''''''     ''  '''    ''' '''''''' '''    :::.              ::::   :::::::::::::::::::::::       
@@ -252,6 +257,9 @@ class brancher {
   ;',                '`   ''    '.                              ::::::::::   ::::       ,:::         ::::  
    '''''''''''''''''''`   ''    '.                               :::::::::   ::::       ,:::         ::::  
     ''''''''''''''''''    ''    '`                                ::::::::   ::::       ,:::         ::::  
+   ****************************************************************************************************** 
+   *******************************     Branch Switcher & Regenerator      *******************************
+   ******************************************************************************************************
 EOV;
 }
 
