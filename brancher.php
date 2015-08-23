@@ -23,8 +23,8 @@ class brancher {
 
 	private static $gitPath;
 	private $configPath;
-	const gitNoBranchMsg = "/error: pathspec '(\w*)' did not match/";
-	const gitNoRemoteMsg = "There is no tracking information for the current branch.";
+	private static $gitNoBranchMsg = "/error: pathspec '(\w*)' did not match/";
+	private static $gitNoRemoteMsg = "There is no tracking information for the current branch.";
 	private static $pipeSettings = array(
 	   0 => array("pipe", "r"), //stdin
 	   1 => array("pipe", "w"), //stout
@@ -33,6 +33,11 @@ class brancher {
 
 	private $branch;
 
+	/**
+	 * Constructor
+	 * This is the controller for the script.
+	 * You could easily add a "module" and plug it in here.
+	 */
 	public function brancher() {
 		// $this->test();
 		$this->init();
@@ -70,6 +75,14 @@ class brancher {
 		$this->upstream = @$argv[2];
 	}
 
+	/**
+	 * Checkout the branch
+	 * This attempts to check out the desired branch.
+	 * If it doesn't exist, and you want to, it will create it for you.
+	 * It will also attempt to set the upstream branch for you, if you've
+	 * passed opted not to skip that step.
+	 * @return void
+	 */
 	private function doCheckout() {
 		self::wl("Gonna try to check out the branch.");
 
@@ -79,7 +92,7 @@ class brancher {
 		$exitCode  = proc_close($process);
 
 		// check the output from the checkout
-		if (preg_match(gitNoBranchMsg, $retVal) === 1) {
+		if (preg_match(self::$gitNoBranchMsg, $retVal) === 1) {
 			// branch doesn't exist, so let's create it if we're supposed to
 			echo("T'ain't no branch by that name. Wanna make one? (y/n): [y] ");
 			$answer = self::readKeyboard();
@@ -172,7 +185,7 @@ class brancher {
 
 		// gag greeting
 		if (isset($argv[1])) {
-			self::wl("Hello " . $me . ". Would you like to play a game of chess?");
+			self::wl("Greetings " . $me . ". How about a nice game of chess?");
 		}
 
 		// Try to guess the path
