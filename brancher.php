@@ -13,21 +13,21 @@
 error_reporting(E_ERROR);
 
 class brancher {	
-	// Path to your regenerate directory if different than /Users/[username]/Development/
+	// Path to your Development directory if different than /Users/[username]/Development/
 	// or /Users/[username]/Dev/
-	private static $regenPath = ""; // add trailing slash
+	private static $gitPath = ""; // add trailing slash
 
 
 	## Don't alter below this, unless, ya know.... ya wanna...
 	##########################################################
 
-	private static $gitPath;
+	private static $regenPath;
 	private $configPath;
 	private static $gitNoBranchMsg = "/error: pathspec '(\w*)' did not match/";
 	private static $gitNoRemoteMsg = "There is no tracking information for the current branch.";
 	private static $pipeSettings = array(
 	   0 => array("pipe", "r"), //stdin
-	   1 => array("pipe", "w"), //stout
+	   1 => array("pipe", "w"), //stout - where regenerate writes to
 	   2 => array("pipe", "w")  //sterr - where the git commands write to
 	);
 
@@ -189,18 +189,19 @@ class brancher {
 		}
 
 		// Try to guess the path
-		if (is_dir(self::$regenPath)) {
+		if (is_dir(self::$gitPath)) {
 			// Do nothing, we're golden
-		} else if (is_dir("/Users/" . $me . "/Development/regenerate/")) {
-			self::$regenPath = "/Users/" . $me . "/Development/regenerate/";
-		} else if (is_dir("/Users/" . $me . "/Dev/regenerate/")) {
-			self::$regenPath = "/Users/" . $me . "/Dev/regenerate/";
+		} else if (is_dir("/Users/" . $me . "/Development/")) {
+			self::$gitPath = "/Users/" . $me . "/Development/";
+		} else if (is_dir("/Users/" . $me . "/Dev/")) {
+			self::$gitPath = "/Users/" . $me . "/Dev/";
 		} else {
-			self::wl("Dude! You need to set the self::\$regenPath in this script! Do that first, homie!");
+			self::wl("Dude! You need to set the self::\$gitPath in this script! Do that first, homie!");
 			die;
 		}
 
-		$this->gitPath = self::$regenPath . "../";
+		self::$regenPath = self::$gitPath . "regenerate/";
+		self::$gitPath = self::$gitPath . "AirSemblyV2";
 		$this->configPath = self::$regenPath . "configuration.json";
 
 		// CD to the user's Dev directory
