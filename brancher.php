@@ -43,6 +43,7 @@ class brancher {
 		$this->init();
 
 		$this->doCheckout();
+		$this->doSetOrigin();
 		$this->doPull();
 		$this->doModifyConfig();
 		$this->doRegenerate();
@@ -86,6 +87,15 @@ class brancher {
 	private function doCheckout() {
 		self::wl("Gonna try to check out the branch.");
 
+		// switch to upstream first
+		$this->setUpstreamBranch();
+
+		// try to checkout branch
+		self::wl("Switching branch to '" . $this->upstream . "'");
+		$process = proc_open("git checkout " . $this->upstream, self::$pipeSettings, $pipes, self::$gitPath, null);
+		$retVal  = stream_get_contents($pipes[2]);
+		$exitCode  = proc_close($process);
+
 		// try to checkout branch
 		$process = proc_open("git checkout " . $this->branch, self::$pipeSettings, $pipes, self::$gitPath, null);
 		$retVal  = stream_get_contents($pipes[2]);
@@ -108,9 +118,7 @@ class brancher {
 			} else {
 				self::wl("I said type 'y' or 'n'... Sheesh, that too much for ya???");
 				die;
-			}
-			
-			$this->setUpstreamBranch();
+			}	
 		} else {
 			self::wl("Switched branch to " . $this->branch);
 		}
@@ -132,8 +140,12 @@ class brancher {
 				$this->upstream = $answer;
 			}
 		}
+	}
 
-		$process = proc_open("git push --set-upstream origin " . $this->upstream, self::$pipeSettings, $pipes, self::$gitPath, null);
+	private function doSetOrigin() {
+		// set the origin branch
+		self::wl("Setting the origin branch...");
+		$process = proc_open("git push --set-upstream origin " . $this->branch, self::$pipeSettings, $pipes, self::$gitPath, null);
 		$retVal = stream_get_contents($pipes[2]);
 		$exitCode = proc_close($process);
 	}
