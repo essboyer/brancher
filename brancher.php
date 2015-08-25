@@ -5,7 +5,7 @@
  *  v 0.1 - 21 Aug 2015
  *  Use this script to quickly switch branches (or create a new one) and renenerate your environment
  *  
- *  Script Usage: > swb branch_name [upstream_branch_name]
+ *  Script Usage: > swb branch_name [baseBranch_branch_name]
  * 
  *  Note: Needs at least PHP 5.4 (because of JSON pretty print option, of all things...)
  *
@@ -64,7 +64,7 @@ class brancher {
 
 		// No args gives you a usage message
 		if (empty($argv[1])) {
-			self::wl("Usage: swb branch_name [origin_name=\"master\"]");
+			self::wl("Usage: swb branch_name [base_branch_name=\"master\"]");
 			exit;
 		} else if ($argv[1] == "help" || $argv[1] == "--help" || $argv[1] == "-help" || $argv[1] == "-h") {
 			self::wl("Help: You're on your own. Read the src, toughguy! ;)");
@@ -73,30 +73,29 @@ class brancher {
 
 		// figure out the argument(s)
 		$this->branch = $argv[1];
-		$this->upstream = @$argv[2];
+		$this->baseBranch = @$argv[2];
 	}
 
 	/**
 	 * Checkout the branch
 	 * This attempts to check out the desired branch.
 	 * If it doesn't exist, and you want to, it will create it for you.
-	 * It will also attempt to set the upstream branch for you, if you've
+	 * It will also attempt to set the base branch branch for you, if you've
 	 * passed opted not to skip that step.
 	 * @return void
 	 */
 	private function doCheckout() {
-		self::wl("Gonna try to check out the branch.");
-
-		// switch to upstream first
-		$this->setUpstreamBranch();
+		// switch to base branch first
+		$this->setBaseBranch();
 
 		// try to checkout branch
-		self::wl("Switching branch to '" . $this->upstream . "'");
-		$process = proc_open("git checkout " . $this->upstream, self::$pipeSettings, $pipes, self::$gitPath, null);
+		self::wl("Switching branch to '" . $this->baseBranch . "'");
+		$process = proc_open("git checkout " . $this->baseBranch, self::$pipeSettings, $pipes, self::$gitPath, null);
 		$retVal  = stream_get_contents($pipes[2]);
 		$exitCode  = proc_close($process);
 
 		// try to checkout branch
+		self::wl("Gonna try to check out the branch.");
 		$process = proc_open("git checkout " . $this->branch, self::$pipeSettings, $pipes, self::$gitPath, null);
 		$retVal  = stream_get_contents($pipes[2]);
 		$exitCode  = proc_close($process);
@@ -111,7 +110,7 @@ class brancher {
 				$process = proc_open("git checkout -b " . $this->branch, self::$pipeSettings, $pipes, self::$gitPath, null);
 				$retVal = stream_get_contents($pipes[2]);
 				$exitCode = proc_close($process);
-				self::wl("Done creating branch \"" . $this->branch . "\"!!!");
+				self::wl("Done creating new branch \"" . $this->branch . "\"!!!");
 			} else if ($answer == "n") {
 				self::wl("The branch \"" . $this->branch . "\" doesn't exist, and you didn't want it created, so we audi 5000! Please out!");
 				exit;
@@ -124,20 +123,20 @@ class brancher {
 		}
 	}
 
-	private function setUpstreamBranch() {
-		// set upstream
-		if (isset($this->upstream)) {
-			self::wl("Setting the upstream branch.");
+	private function setBaseBranch() {
+		// set base branch
+		if (isset($this->baseBranch)) {
+			self::wl("Setting the base branch to " . $this->baseBranch . ".");
 		} else {
-			echo("Enter your upstream branch name, or 'skip' to skip this step: [master] ");
+			echo("Enter your base branch branch name, or 'skip' to skip this step: [master] ");
 			$answer = self::readKeyboard();
 			if (empty($answer)) {
-				$this->upstream = "master";
+				$this->baseBranch = "master";
 			} else if ($answer == "skip") {
-				self::wl("Not setting an upstream.");
+				self::wl("Not setting a base branch. You must already be where you want to be, eh?");
 				return;
 			} else {
-				$this->upstream = $answer;
+				$this->baseBranch = $answer;
 			}
 		}
 	}
