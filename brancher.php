@@ -42,6 +42,7 @@ class brancher {
 		// $this->test();
 		$this->init();
 
+		$this->doSetBaseBranch();
 		$this->doCheckout();
 		$this->doSetOrigin();
 		$this->doPull();
@@ -84,15 +85,7 @@ class brancher {
 	 * passed opted not to skip that step.
 	 * @return void
 	 */
-	private function doCheckout() {
-		// switch to base branch first
-		$this->setBaseBranch();
-
-		// try to checkout branch
-		self::wl("Switching branch to '" . $this->baseBranch . "'");
-		$process = proc_open("git checkout " . $this->baseBranch, self::$pipeSettings, $pipes, self::$gitPath, null);
-		$retVal  = stream_get_contents($pipes[2]);
-		$exitCode  = proc_close($process);
+	private function doCheckout() {		
 
 		// try to checkout branch
 		self::wl("Gonna try to check out the branch.");
@@ -123,7 +116,7 @@ class brancher {
 		}
 	}
 
-	private function setBaseBranch() {
+	private function doSetBaseBranch() {
 		// set base branch
 		if (isset($this->baseBranch)) {
 			self::wl("Setting the base branch to " . $this->baseBranch . ".");
@@ -137,6 +130,26 @@ class brancher {
 				return;
 			} else {
 				$this->baseBranch = $answer;
+			}
+		}
+
+		// try to checkout branch
+		self::wl("Switching branch to '" . $this->baseBranch . "'");
+		$process = proc_open("git checkout " . $this->baseBranch, self::$pipeSettings, $pipes, self::$gitPath, null);
+		$retVal  = stream_get_contents($pipes[2]);
+		$exitCode  = proc_close($process);
+
+		// Make sure the branch exists, otherwise we probably have a typo
+		if (preg_match(self::$gitNoBranchMsg, $retVal) === 1) {
+			echo("Uh oh... There's no branch called '" . $this->baseBranch . "'. Please type the name again: [quit] ");
+			$answer = self::readKeyboard();
+
+			if (empty($answer) || $answer == "quit") {
+				self::wl("Quitters never prosper, says mom...");
+				exit;
+			} else {
+				$this->baseBranch = $answer;
+				$this->doSetBaseBranch();
 			}
 		}
 	}
