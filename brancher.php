@@ -152,6 +152,14 @@ class brancher {
 				$this->doSetBaseBranch();
 			}
 		}
+
+		// pull the base branch
+		self::wl("Pulling '" . $this->baseBranch . "'...");
+		$process = proc_open("git pull " . $this->baseBranch, self::$pipeSettings, $pipes, self::$gitPath, null);
+		$retVal  = stream_get_contents($pipes[2]);
+		$exitCode  = proc_close($process);
+
+		//TODO: what kinda errors can we get here? 
 	}
 
 	private function doSetOrigin() {
