@@ -17,6 +17,9 @@ class brancher {
 	// or /Users/[username]/Dev/
 	private static $gitPath = ""; // add trailing slash
 
+	// Name of the repository to work on. Probably this won't change
+	private static $repository = "AirSemblyV2";
+
 
 	## Don't alter below this, unless, ya know.... ya wanna...
 	##########################################################
@@ -116,6 +119,11 @@ class brancher {
 		}
 	}
 
+	/**
+	 * Set the base branch before we switch to our new branch
+	 * and then pull the branch
+	 * @return void
+	 */
 	private function doSetBaseBranch() {
 		// set base branch
 		if (isset($this->baseBranch)) {
@@ -162,6 +170,10 @@ class brancher {
 		//TODO: what kinda errors can we get here? 
 	}
 
+	/**
+	 * Set the upstream origin branch
+	 * @return void
+	 */
 	private function doSetOrigin() {
 		// set the origin branch
 		self::wl("Setting the origin branch...");
@@ -170,6 +182,10 @@ class brancher {
 		$exitCode = proc_close($process);
 	}
 
+	/**
+	 * Ya know... do a pull...
+	 * @return void
+	 */
 	private function doPull() {
 		// pull
 		self::wl("Pulling...");
@@ -178,6 +194,11 @@ class brancher {
 		$exitCode = proc_close($process);
 	}
 
+	/**
+	 * Open the Regenerate configuration JSON file
+	 * and update it with the current branch
+	 * @return void
+	 */
 	private function doModifyConfig() {
 		// open & modify the configuration.json
 		self::wl("Now we'll set the branch on the regenerate config.");
@@ -187,6 +208,11 @@ class brancher {
 		file_put_contents($this->configPath, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 	}
 
+	/**
+	 * Run Regenerate
+	 * Spits out the application output (STDOUT) to our STDERR
+	 * @return void
+	 */
 	private function doRegenerate() {
 		// run regenerate
 		self::wl("Going to Run regenerate now... Hold on, it takes awhile (1-3 minutes).");
@@ -215,7 +241,7 @@ class brancher {
 			die;
 		}
 
-		// gag greeting
+		// War Games gag greeting
 		if (isset($argv[1])) {
 			self::wl("Greetings " . $me . ". How about a nice game of chess?");
 		}
@@ -233,16 +259,16 @@ class brancher {
 		}
 
 		self::$regenPath = self::$gitPath . "regenerate/";
-		self::$gitPath = self::$gitPath . "AirSemblyV2";
+		self::$gitPath = self::$gitPath . self::$repository;
 		$this->configPath = self::$regenPath . "configuration.json";
 
-		// CD to the user's Dev directory
+		// CD to the user's Dev directory so the commands make sense
 		chdir($this->gitPath);
 	}
 
 	/**
 	 * Read input off the keyboard, single line only.
-	 * @return type
+	 * @return void
 	 */
 	private static function readKeyboard() {
 		$fp = fopen('php://stdin', 'r');
