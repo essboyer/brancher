@@ -42,7 +42,7 @@ class brancher {
 	 * You could easily add a "module" and plug it in here.
 	 */
 	public function brancher() {
-		// $this->test();
+		$this->test();
 		$this->init();
 
 		$this->doSetBaseBranch();
@@ -51,6 +51,7 @@ class brancher {
 		$this->doPull();
 		$this->doModifyConfig();
 		$this->doRegenerate();
+		$this->tellMeWeAreDone();
 
 		self::wl("A'ight, we done, we audi 5000! Please out!");
 	}
@@ -279,6 +280,16 @@ class brancher {
 		    	return trim($line);
 		    }
 		    usleep(20000);
+		}
+	}
+
+	/**
+	 * Why Not?
+	 * @return void
+	 */
+	private function tellMeWeAreDone() {
+		if (file_exists(exec("which espeak"))) {
+			exec("echo 'we did it, yay' | espeak");
 		}
 	}
 
