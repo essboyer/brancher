@@ -42,7 +42,7 @@ class brancher {
 	 * You could easily add a "module" and plug it in here.
 	 */
 	public function brancher() {
-		$this->test();
+		//$this->test();
 		$this->init();
 
 		$this->doSetBaseBranch();
@@ -289,7 +289,7 @@ class brancher {
 	 */
 	private function tellMeWeAreDone() {
 		if (file_exists(exec("which espeak"))) {
-			exec("echo 'we did it, yay' | espeak");
+			exec("echo 'Branching done. Get back to work' | espeak -v en-gb -a 200");
 		}
 	}
 
