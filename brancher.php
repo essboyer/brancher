@@ -70,6 +70,8 @@ class brancher {
 		// No args gives you a usage message
 		if (empty($argv[1])) {
 			self::wl("Usage: swb branch_name [base_branch_name=\"master\"]");
+			self::wl("\t\t'branch_name' is the branch you want to do your work in");
+			self::wl("\t\t'base_branch_name' is the base branch you want to create the working branch on. Don't worry. You can skip this if you need to.");
 			exit;
 		} else if ($argv[1] == "help" || $argv[1] == "--help" || $argv[1] == "-help" || $argv[1] == "-h") {
 			self::wl("Help: You're on your own. Read the src, toughguy! ;)");
