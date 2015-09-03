@@ -51,9 +51,9 @@ class brancher {
 		$this->doPull();
 		$this->doModifyConfig();
 		$this->doRegenerate();
-		$this->tellMeWeAreDone();
 
 		self::wl("A'ight, we done, we audi 5000! Please out!");
+		$this->tellMeWeAreDone();
 	}
 
 	/**
