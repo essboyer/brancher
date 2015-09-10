@@ -63,7 +63,7 @@ class brancher {
 	private function init() {
 		global $argv;
 
-		self::wl(self::$ascii);
+		echo self::$ascii . "\n\n";
 
 		$this->configurePaths();
 
@@ -219,6 +219,10 @@ class brancher {
 	private function doRegenerate() {
 		// run regenerate
 		self::wl("Going to Run regenerate now... Hold on, it takes awhile (1-3 minutes).");
+		echo "\n";
+		echo "*************************************************************************\n";
+		echo "                           Regenerate Output                             \n";
+		echo "*************************************************************************\n";
 		$streams = array (2 => array("pipe", "w")); // only capture STDERR, allowing STDOUT to pass thru
 		$process = proc_open(self::$regenPath . "regenerate", $streams, $pipes, self::$regenPath, null);
 		$retVal = stream_get_contents($pipes[2]);
@@ -301,7 +305,7 @@ class brancher {
 	 * @return type
 	 */
 	private static function wl($str) {
-		echo ($str . PHP_EOL . PHP_EOL);
+		echo ("--->\t" . $str . PHP_EOL);
 	}
 
 	/**
