@@ -2,24 +2,24 @@
 /**
  *  Faster Branch Switcher & Regenerator
  *  by boyernotseaboyer
+ *  v 0.2 - 25 Sep 2015
  *  v 0.1 - 21 Aug 2015
  *  Use this script to quickly switch branches (or create a new one) and renenerate your environment
- *  
+ *
  *  Script Usage: > swb branch_name [baseBranch_branch_name]
- * 
+ *
  *  Note: Needs at least PHP 5.4 (because of JSON pretty print option, of all things...)
  *
  * */
 error_reporting(E_ERROR);
 
-class brancher {	
+class brancher {
 	// Path to your Development directory if different than /Users/[username]/Development/
 	// or /Users/[username]/Dev/
 	private static $gitPath = ""; // add trailing slash
 
 	// Name of the repository to work on. Probably this won't change
 	private static $repository = "AirSemblyV2";
-
 
 	## Don't alter below this, unless, ya know.... ya wanna...
 	##########################################################
@@ -28,10 +28,10 @@ class brancher {
 	private $configPath;
 	private static $gitNoBranchMsg = "/error: pathspec '(\w*)' did not match/";
 	private static $gitNoRemoteMsg = "There is no tracking information for the current branch.";
-	private static $pipeSettings = array(
-	   0 => array("pipe", "r"), //stdin
-	   1 => array("pipe", "w"), //stout - where regenerate writes to
-	   2 => array("pipe", "w")  //sterr - where the git commands write to
+	private static $pipeSettings   = array(
+		0 => array("pipe", "r"), //stdin
+		1 => array("pipe", "w"), //stout - where regenerate writes to
+		2 => array("pipe", "w"), //sterr - where the git commands write to
 	);
 
 	private $branch;
@@ -79,7 +79,7 @@ class brancher {
 		}
 
 		// figure out the argument(s)
-		$this->branch = $argv[1];
+		$this->branch     = $argv[1];
 		$this->baseBranch = @$argv[2];
 	}
 
@@ -91,23 +91,23 @@ class brancher {
 	 * passed opted not to skip that step.
 	 * @return void
 	 */
-	private function doCheckout() {		
+	private function doCheckout() {
 
 		// try to checkout branch
 		self::wl("Gonna try to check out the branch.");
-		$process = proc_open("git checkout " . $this->branch, self::$pipeSettings, $pipes, self::$gitPath, null);
-		$retVal  = stream_get_contents($pipes[2]);
-		$exitCode  = proc_close($process);
+		$process  = proc_open("git checkout " . $this->branch, self::$pipeSettings, $pipes, self::$gitPath, null);
+		$retVal   = stream_get_contents($pipes[2]);
+		$exitCode = proc_close($process);
 
 		// check the output from the checkout
 		if (preg_match(self::$gitNoBranchMsg, $retVal) === 1) {
 			// branch doesn't exist, so let's create it if we're supposed to
-			echo("T'ain't no branch by that name. Wanna make one? (y/n): [y] ");
+			echo "T'ain't no branch by that name. Wanna make one? (y/n): [y] ";
 			$answer = self::readKeyboard();
 
 			if ($answer == "y" || empty($answer)) {
-				$process = proc_open("git checkout -b " . $this->branch, self::$pipeSettings, $pipes, self::$gitPath, null);
-				$retVal = stream_get_contents($pipes[2]);
+				$process  = proc_open("git checkout -b " . $this->branch, self::$pipeSettings, $pipes, self::$gitPath, null);
+				$retVal   = stream_get_contents($pipes[2]);
 				$exitCode = proc_close($process);
 				self::wl("Done creating new branch \"" . $this->branch . "\"!!!");
 			} else if ($answer == "n") {
@@ -116,9 +116,9 @@ class brancher {
 			} else {
 				self::wl("I said type 'y' or 'n'... Sheesh, that too much for ya???");
 				die;
-			}	
+			}
 		} else {
-			self::wl("Switched branch to " . $this->branch);
+			self::wl("Switched branch to \e[1;4;44m" . $this->branch . "\e[0m");
 		}
 	}
 
@@ -132,7 +132,7 @@ class brancher {
 		if (isset($this->baseBranch)) {
 			self::wl("Setting the base branch to " . $this->baseBranch . ".");
 		} else {
-			echo("Enter your base branch branch name, or 'skip' to skip this step: [master] ");
+			echo "Enter your base branch branch name, or 'skip' to skip this step: [master] ";
 			$answer = self::readKeyboard();
 			if (empty($answer)) {
 				$this->baseBranch = "master";
@@ -146,13 +146,13 @@ class brancher {
 
 		// try to checkout branch
 		self::wl("Switching branch to '" . $this->baseBranch . "'");
-		$process = proc_open("git checkout " . $this->baseBranch, self::$pipeSettings, $pipes, self::$gitPath, null);
-		$retVal  = stream_get_contents($pipes[2]);
-		$exitCode  = proc_close($process);
+		$process  = proc_open("git checkout " . $this->baseBranch, self::$pipeSettings, $pipes, self::$gitPath, null);
+		$retVal   = stream_get_contents($pipes[2]);
+		$exitCode = proc_close($process);
 
 		// Make sure the branch exists, otherwise we probably have a typo
 		if (preg_match(self::$gitNoBranchMsg, $retVal) === 1) {
-			echo("Uh oh... There's no branch called '" . $this->baseBranch . "'. Please type the name again: [quit] ");
+			echo "Uh oh... There's no branch called '" . $this->baseBranch . "'. Please type the name again: [quit] ";
 			$answer = self::readKeyboard();
 
 			if (empty($answer) || $answer == "quit") {
@@ -166,11 +166,11 @@ class brancher {
 
 		// pull the base branch
 		self::wl("Pulling '" . $this->baseBranch . "'...");
-		$process = proc_open("git pull " . $this->baseBranch, self::$pipeSettings, $pipes, self::$gitPath, null);
-		$retVal  = stream_get_contents($pipes[2]);
-		$exitCode  = proc_close($process);
+		$process  = proc_open("git pull " . $this->baseBranch, self::$pipeSettings, $pipes, self::$gitPath, null);
+		$retVal   = stream_get_contents($pipes[2]);
+		$exitCode = proc_close($process);
 
-		//TODO: what kinda errors can we get here? 
+		//TODO: what kinda errors can we get here?
 	}
 
 	/**
@@ -180,8 +180,8 @@ class brancher {
 	private function doSetOrigin() {
 		// set the origin branch
 		self::wl("Setting the origin branch...");
-		$process = proc_open("git push --set-upstream origin " . $this->branch, self::$pipeSettings, $pipes, self::$gitPath, null);
-		$retVal = stream_get_contents($pipes[2]);
+		$process  = proc_open("git push --set-upstream origin " . $this->branch, self::$pipeSettings, $pipes, self::$gitPath, null);
+		$retVal   = stream_get_contents($pipes[2]);
 		$exitCode = proc_close($process);
 	}
 
@@ -192,8 +192,8 @@ class brancher {
 	private function doPull() {
 		// pull
 		self::wl("Pulling...");
-		$process = proc_open("git pull", self::$pipeSettings, $pipes, self::$gitPath, null);
-		$retVal = stream_get_contents($pipes[2]);
+		$process  = proc_open("git pull", self::$pipeSettings, $pipes, self::$gitPath, null);
+		$retVal   = stream_get_contents($pipes[2]);
 		$exitCode = proc_close($process);
 	}
 
@@ -206,7 +206,7 @@ class brancher {
 		// open & modify the configuration.json
 		self::wl("Now we'll set the branch on the regenerate config.");
 
-		$config = json_decode(file_get_contents($this->configPath));
+		$config             = json_decode(file_get_contents($this->configPath));
 		$config->{"branch"} = $this->branch;
 		file_put_contents($this->configPath, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
 	}
@@ -220,12 +220,12 @@ class brancher {
 		// run regenerate
 		self::wl("Going to Run regenerate now... Hold on, it takes awhile (1-3 minutes).");
 		echo "\n";
-		echo "*************************************************************************\n";
-		echo "                           Regenerate Output                             \n";
-		echo "*************************************************************************\n";
-		$streams = array (2 => array("pipe", "w")); // only capture STDERR, allowing STDOUT to pass thru
-		$process = proc_open(self::$regenPath . "regenerate", $streams, $pipes, self::$regenPath, null);
-		$retVal = stream_get_contents($pipes[2]);
+		echo "    ******************************************************************************************************\n";
+		echo "    *******************************            Regenerate Output           *******************************\n";
+		echo "    ******************************************************************************************************\n";
+		$streams  = array(2 => array("pipe", "w")); // only capture STDERR, allowing STDOUT to pass thru
+		$process  = proc_open(self::$regenPath . "regenerate", $streams, $pipes, self::$regenPath, null);
+		$retVal   = stream_get_contents($pipes[2]);
 		$exitCode = proc_close($process);
 	}
 
@@ -265,8 +265,8 @@ class brancher {
 			die;
 		}
 
-		self::$regenPath = self::$gitPath . "regenerate/";
-		self::$gitPath = self::$gitPath . self::$repository;
+		self::$regenPath  = self::$gitPath . "regenerate/";
+		self::$gitPath    = self::$gitPath . self::$repository;
 		$this->configPath = self::$regenPath . "configuration.json";
 
 		// CD to the user's Dev directory so the commands make sense
@@ -279,13 +279,14 @@ class brancher {
 	 */
 	private static function readKeyboard() {
 		$fp = fopen('php://stdin', 'r');
-		while (true) { // Don't you LOVE seeing this line?
-		    $line = fgets($fp, 1024);
-		    if (stripos($line, PHP_EOL) !== false) {
-		    	fclose($fp);
-		    	return trim($line);
-		    }
-		    usleep(20000);
+		// Don't you LOVE seeing this line?
+		while (true) {
+			$line = fgets($fp, 1024);
+			if (stripos($line, PHP_EOL) !== false) {
+				fclose($fp);
+				return trim($line);
+			}
+			usleep(20000);
 		}
 	}
 
@@ -301,18 +302,18 @@ class brancher {
 
 	/**
 	 * Write a line with a bunch of linebreaks
-	 * @param type $str 
+	 * @param type $str
 	 * @return type
 	 */
 	private static function wl($str) {
-		echo ("--->\t" . $str . PHP_EOL);
+		echo "--->\t" . $str . PHP_EOL;
 	}
 
 	/**
 	 * Write an object to the error log, optionally
 	 * prefixing with a string
-	 * @param type $obj 
-	 * @param type $prefixStr 
+	 * @param type $obj
+	 * @param type $prefixStr
 	 * @return type
 	 */
 	private static function l($obj, $prefixStr = "") {
@@ -324,29 +325,31 @@ class brancher {
 	}
 
 	private static $ascii = <<<EOV
-     ''  '''''''     ''  '''    ''' '''''''' '''    :::.              ::::   ,::::::::::::::::::::         
-     ''  '''''''     ''  '''    ''' '''''''' '''    :::.              ::::   ::::::::::::::::::::::        
-     ''  '''''''     ''  '''    ''' '''''''' '''    :::.              ::::   :::::::::::::::::::::::       
-                                                    :::.              ::::   ::::::::::::::::::::::::      
-                                                    :::.              ::::   ::::       ,:::    `:::::     
-                                                    :::.              ::::   ::::       ,:::     `:::::    
-                                                    ::::              ::::   ::::       ,:::      `:::::   
-      :'''''''''''''      ::    '   ''''''''''`     :::::             ::::   ::::       ,:::       `:::::  
-     ''''''''''''''''     ''    '. ''''''''''''.     :::::            ::::   ::::       ,:::        `::::  
-     ';             ''    ''    '.''`         ''      :::::           ::::   ::::       ,:::         ::::  
-                    `'`   ''    '''`                   :::::          ::::   ::::       ,:::         ::::  
-                     '`   ''    ''`                     :::::         ::::   ::::       ,:::         ::::  
-                    `'`   ''    '.                       :::::        ::::   ::::       ,:::         ::::  
-    ''''''''''''''''''`   ''    '.                        :::::       ::::   ::::       ,:::         ::::  
-   '':,,,,,,,,,,,,,,;'`   ''    '.                         :::::      ::::   ::::       ,:::         ::::  
-  ''`                '`   ''    '.                          :::::     ::::   ::::       ,:::         ::::  
-  ''                 '`   ''    '.                           :::::    ::::   ::::       ,:::         ::::  
-  ''                 '`   ''    '.                            :::::   ::::   ::::       ,:::         ::::  
-  ''                 '`   ''    '.                             :::::::::::   ::::       ,:::         ::::  
-  ;',                '`   ''    '.                              ::::::::::   ::::       ,:::         ::::  
-   '''''''''''''''''''`   ''    '.                               :::::::::   ::::       ,:::         ::::  
-    ''''''''''''''''''    ''    '`                                ::::::::   ::::       ,:::         ::::  
-   ****************************************************************************************************** 
+
+
+     ''  '''''''     ''  '''    ''' '''''''' '''    :::.              ::::   ,::::::::::::::::::::
+     ''  '''''''     ''  '''    ''' '''''''' '''    :::.              ::::   ::::::::::::::::::::::
+     ''  '''''''     ''  '''    ''' '''''''' '''    :::.              ::::   :::::::::::::::::::::::
+                                                    :::.              ::::   ::::::::::::::::::::::::
+                                                    :::.              ::::   ::::       ,:::    `:::::
+                                                    :::.              ::::   ::::       ,:::     `:::::
+                                                    ::::              ::::   ::::       ,:::      `:::::
+      :'''''''''''''      ::    '   ''''''''''`     :::::             ::::   ::::       ,:::       `:::::
+     ''''''''''''''''     ''    '. ''''''''''''.     :::::            ::::   ::::       ,:::        `::::
+     ';             ''    ''    '.''`         ''      :::::           ::::   ::::       ,:::         ::::
+                    `'`   ''    '''`                   :::::          ::::   ::::       ,:::         ::::
+                     '`   ''    ''`                     :::::         ::::   ::::       ,:::         ::::
+                    `'`   ''    '.                       :::::        ::::   ::::       ,:::         ::::
+    ''''''''''''''''''`   ''    '.                        :::::       ::::   ::::       ,:::         ::::
+   '':,,,,,,,,,,,,,,;'`   ''    '.                         :::::      ::::   ::::       ,:::         ::::
+  ''`                '`   ''    '.                          :::::     ::::   ::::       ,:::         ::::
+  ''                 '`   ''    '.                           :::::    ::::   ::::       ,:::         ::::
+  ''                 '`   ''    '.                            :::::   ::::   ::::       ,:::         ::::
+  ''                 '`   ''    '.                             :::::::::::   ::::       ,:::         ::::
+  ;',                '`   ''    '.                              ::::::::::   ::::       ,:::         ::::
+   '''''''''''''''''''`   ''    '.                               :::::::::   ::::       ,:::         ::::
+    ''''''''''''''''''    ''    '`                                ::::::::   ::::       ,:::         ::::
+   ******************************************************************************************************
    *******************************     Branch Switcher & Regenerator      *******************************
    ******************************************************************************************************
 EOV;
