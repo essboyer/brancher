@@ -285,7 +285,7 @@ class brancher {
 			} else {
 				self::wl("Uh-oh... Running branch SQL bomed with the following message:");
 				print_r($err);
-				self::wl("We're gonna bail out of this, but continue with everything else.");
+				self::wl("We're gonna bail out of this, but continue with anything else there is to do.");
 				self::waitFor(5);
 				return;
 			}
