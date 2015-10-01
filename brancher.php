@@ -51,6 +51,7 @@ class brancher {
 		$this->doPull();
 		$this->doModifyConfig();
 		$this->doRegenerate();
+		$this->doRunBranchSQL();
 
 		self::wl("A'ight, we done, we audi 5000! Please out!");
 		$this->tellMeWeAreDone();
@@ -227,6 +228,68 @@ class brancher {
 		$process  = proc_open(self::$regenPath . "regenerate", $streams, $pipes, self::$regenPath, null);
 		$retVal   = stream_get_contents($pipes[2]);
 		$exitCode = proc_close($process);
+		echo "\n\n";
+	}
+
+	/**
+	 * Automaticall run the SQL file with the same name as the branch
+	 * This will grab the current server you're regenerate is talking to
+	 * @return void
+	 */
+	private function doRunBranchSQL() {
+
+		// See if there is a branch SQL file to run
+		if (!is_file(self::$gitPath . "/sql/" . $this->branch . ".sql")) {
+			return;
+		}
+
+		// Check to see if we have ssh2 installed, and if not, brew it
+		$result = exec("brew ls --versions php56-ssh2");
+
+		if (empty($result)) {
+			self::wl("Looks like PHP's *ssh2_exec* isn't installed, so let's brew it up!");
+
+			$process  = proc_open("brew install php56-ssh2", self::$pipeSettings, $pipes, self::$gitPath, null);
+			$retVal   = stream_get_contents($pipes[2]);
+			$exitCode = proc_close($process);
+
+			if (strpos($retVal, "Error:") !== false) {
+				self::wl("Something went wrong brewing the SSH stuff, see?");
+				print_r($retVal);
+				self::wl("We're gonna bail out of this, but continue with anything else there is to do.");
+				self::waitFor(5);
+				return;
+			}
+	
+		}
+
+		echo "Branch SQL exists. Want to run it? (y/n): [y] ";
+		$answer = self::readKeyboard();
+
+		if ($answer == "y" || empty($answer)) {
+			$config = json_decode(file_get_contents($this->configPath));
+			$cmd = "mysql -p" . $config->{"password"} . " airsembly < " . $config->{"remote_path"} . "/sql/" . $this->branch . ".sql";
+
+			$connection = ssh2_connect($config->{"hostname"}, $config->{"port"});
+			ssh2_auth_password($connection, $config->{"username"}, $config->{"password"});
+
+			$stream = ssh2_exec($connection, $cmd);
+			$errorStream = ssh2_fetch_stream($stream, SSH2_STREAM_STDERR);
+
+			stream_set_blocking($errorStream, true);
+
+			$err = stream_get_contents($errorStream);
+
+			if (strpos($err, "ERROR") === false) {
+				self::wl("Ran branch SQL successfully!");
+			} else {
+				self::wl("Uh-oh... Running branch SQL bomed with the following message:");
+				print_r($err);
+				self::wl("We're gonna bail out of this, but continue with everything else.");
+				self::waitFor(5);
+				return;
+			}
+		}
 	}
 
 	/**
@@ -318,6 +381,19 @@ class brancher {
 	 */
 	private static function l($obj, $prefixStr = "") {
 		error_log($previxStr . print_r($obj, true));
+	}
+
+/**
+ * Sleep for x number of seconds, printing a catty message along the way.
+ * @param type $seconds 
+ * @return void
+ */
+	private static function waitFor($seconds) {
+		self::wl("and continuing in...");
+		for ($i = $seconds; $i > 0 ; $i--) {
+			self::wl("$i...");
+			sleep(1);
+		}
 	}
 
 	private function test() {
