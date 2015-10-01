@@ -2,6 +2,7 @@
 /**
  *  Faster Branch Switcher & Regenerator
  *  by boyernotseaboyer
+ *  v 0.3 - 01 Oct 2015
  *  v 0.2 - 25 Sep 2015
  *  v 0.1 - 21 Aug 2015
  *  Use this script to quickly switch branches (or create a new one) and renenerate your environment
